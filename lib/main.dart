@@ -7,6 +7,8 @@ import 'package:pushup_counter/services/storage_service.dart';
 import 'package:pushup_counter/services/overlay_service.dart';
 import 'package:pushup_counter/services/usage_service.dart';
 
+final navigatorKey = GlobalKey<NavigatorState>();
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final storage = StorageService();
@@ -33,9 +35,9 @@ Future<void> main() async {
 Future<void> _handleOverlayMethodCall(MethodCall call) async {
   switch (call.method) {
     case 'startPushups':
-      // Navigate to pushup counter - this will be handled by the navigator key
-      // For now, we'll just print - the overlay will close itself
-      print('Overlay requested to start pushups');
+      navigatorKey.currentState?.push(
+        MaterialPageRoute(builder: (context) => const PushupCounter()),
+      );
       break;
     case 'closeOverlay':
       // Close overlay - this is handled by the overlay itself
@@ -53,11 +55,14 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: navigatorKey,
       title: 'Pushup Counter',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
+      darkTheme: ThemeData.dark(),
+      themeMode: ThemeMode.dark,
       home: const Home()
     );
   }

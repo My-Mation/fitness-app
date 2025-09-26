@@ -104,14 +104,39 @@ class _HomeState extends State<Home> {
         action: SnackBarAction(
           label: 'Do Pushups',
           onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const PushupCounter()),
-            );
+            _navigateToPushupCounter();
           },
         ),
       ),
     );
+  }
+
+  void _navigateToPushupCounter() async {
+    final pushupCount = await Navigator.push<int>(
+      context,
+      MaterialPageRoute(builder: (context) => const PushupCounter()),
+    );
+
+    if (pushupCount != null && pushupCount > 0) {
+      // For which app should we add time? For now, let's assume the one that last exceeded the limit.
+      final appToCredit = _limitExceededApp;
+      if (appToCredit != null) {
+        final timeToAdd = Duration(minutes: pushupCount); // 1 pushup = 1 minute
+        final currentLimit = _storage.getDailyLimit(appToCredit);
+        final newLimit = currentLimit + timeToAdd;
+        await _storage.setDailyLimit(appToCredit, newLimit);
+        _updateUsageDisplay();
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Added $pushupCount minutes to $appToCredit!'),
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      }
+    }
   }
 
   void _showUsageStats() async {
@@ -274,12 +299,6 @@ class _HomeState extends State<Home> {
 
   List<String> _targets = [];
 
-  static const List<Widget> _widgetOptions = <Widget>[
-    Text('Home Page'),
-    Text('Profile Page'),
-    Text('Settings Page'),
-  ];
-
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
@@ -289,112 +308,28 @@ class _HomeState extends State<Home> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            _widgetOptions.elementAt(_selectedIndex),
-            const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                ElevatedButton.icon(
-                  onPressed: () async {
-                    await Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const AppSelector()),
-                    );
-                    // Reload configured apps after returning from selector
-                    await _loadConfiguredApps();
-                    setState(() {});
-                  },
-                  icon: const Icon(Icons.apps),
-                  label: const Text('Disable Apps'),
-                ),
-                const SizedBox(width: 10),
-                ElevatedButton.icon(
-                  onPressed: () => _showUsageStats(),
-                  icon: const Icon(Icons.bar_chart),
-                  label: const Text('Usage Stats'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const PushupCounter()),
-                );
-              },
-              child: const Text('Do Pushup'),
-            ),
-            const SizedBox(height: 20),
-            const Text('Disabled Apps (with time limits):'),
-            if (_targets.isEmpty)
-              const Text('No apps disabled. Tap "Disable All Apps" to set time limits.')
-            else
-              for (final pkg in _targets)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Card(
-                    color: (_currentUsage[pkg] ?? Duration.zero) >= _storage.getDailyLimit(pkg) && _storage.getDailyLimit(pkg) > Duration.zero
-                        ? Colors.red.shade100
-                        : Colors.white,
-                    child: Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: Column(
-                        children: [
-                          Text(
-                            pkg,
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(height: 4),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Limit: ${_formatDuration(_storage.getDailyLimit(pkg))} | Used: ${_formatDuration(_currentUsage[pkg] ?? Duration.zero)}',
-                                style: TextStyle(
-                                  color: (_currentUsage[pkg] ?? Duration.zero) >= _storage.getDailyLimit(pkg) && _storage.getDailyLimit(pkg) > Duration.zero
-                                      ? Colors.red
-                                      : Colors.black,
-                                  fontWeight: (_currentUsage[pkg] ?? Duration.zero) >= _storage.getDailyLimit(pkg) && _storage.getDailyLimit(pkg) > Duration.zero
-                                      ? FontWeight.bold
-                                      : FontWeight.normal,
-                                ),
-                              ),
-                              if (_systemUsageStats.containsKey(pkg))
-                                Text(
-                                  '📊 System Data: ${_formatDuration(_systemUsageStats[pkg]!)}',
-                                  style: const TextStyle(
-                                    fontSize: 10,
-                                    color: Colors.blue,
-                                    fontStyle: FontStyle.italic,
-                                  ),
-                                ),
-                            ],
-                          ),
-                          if ((_currentUsage[pkg] ?? Duration.zero) >= _storage.getDailyLimit(pkg) && _storage.getDailyLimit(pkg) > Duration.zero)
-                            const Padding(
-                              padding: EdgeInsets.only(top: 4),
-                              child: Text(
-                                '🚫 TIME LIMIT EXCEEDED!',
-                                style: TextStyle(
-                                  color: Colors.red,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-          ],
-        ),
+      appBar: AppBar(
+        title: const Text('Pushup Productivity'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.apps),
+            onPressed: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const AppSelector()),
+              );
+              // Reload configured apps after returning from selector
+              await _loadConfiguredApps();
+              setState(() {});
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.bar_chart),
+            onPressed: () => _showUsageStats(),
+          ),
+        ],
       ),
+      body: _buildBody(),
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(
@@ -411,9 +346,96 @@ class _HomeState extends State<Home> {
           ),
         ],
         currentIndex: _selectedIndex,
-        selectedItemColor: Colors.amber[800],
         onTap: _onItemTapped,
       ),
+    );
+  }
+
+  Widget _buildBody() {
+    switch (_selectedIndex) {
+      case 0:
+        return _buildHomePage();
+      case 1:
+        return const Center(child: Text('Profile Page')); // Placeholder for profile
+      case 2:
+        return const Center(child: Text('Settings Page')); // Placeholder for settings
+      default:
+        return const SizedBox.shrink();
+    }
+  }
+
+  Widget _buildHomePage() {
+    return Column(
+      children: [
+        Expanded(
+          child: _targets.isEmpty
+              ? const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(24.0),
+                    child: Text(
+                      'No apps are currently being restricted. Tap the apps icon in the top right to select apps to restrict.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 16, color: Colors.grey),
+                    ),
+                  ),
+                )
+              : ListView.builder(
+                  itemCount: _targets.length,
+                  itemBuilder: (context, index) {
+                    final pkg = _targets[index];
+                    final limit = _storage.getDailyLimit(pkg);
+                    final usage = _currentUsage[pkg] ?? Duration.zero;
+                    final isExceeded = limit > Duration.zero && usage >= limit;
+
+                    return Card(
+                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      color: isExceeded ? Colors.red.shade900 : null,
+                      child: ListTile(
+                        title: Text(
+                          _getAppName(pkg),
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: isExceeded ? Colors.white : null,
+                          ),
+                        ),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Limit: ${_formatDuration(limit)} | Used: ${_formatDuration(usage)}',
+                              style: TextStyle(color: isExceeded ? Colors.white70 : null),
+                            ),
+                            if (_systemUsageStats.containsKey(pkg))
+                              Text(
+                                '📊 System Data: ${_formatDuration(_systemUsageStats[pkg]!)}',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: isExceeded ? Colors.lightBlue.shade100 : Colors.blue,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                          ],
+                        ),
+                        trailing: isExceeded
+                            ? const Icon(Icons.warning, color: Colors.white)
+                            : const Icon(Icons.check_circle, color: Colors.green),
+                      ),
+                    );
+                  },
+                ),
+        ),
+        Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: ElevatedButton.icon(
+            onPressed: _navigateToPushupCounter,
+            icon: const Icon(Icons.fitness_center),
+            label: const Text('Do a Pushup'),
+            style: ElevatedButton.styleFrom(
+              minimumSize: const Size(double.infinity, 50), // Full width
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

@@ -43,6 +43,17 @@ class _PushupCounterState extends State<PushupCounter> {
 
   Future<void> _initializeCamera() async {
     final cameras = await availableCameras();
+    if (cameras.isEmpty) {
+      // No cameras available
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No cameras found on this device.')),
+        );
+        Navigator.of(context).pop();
+      }
+      return;
+    }
+
     final frontCamera = cameras.firstWhere(
       (cam) => cam.lensDirection == CameraLensDirection.front,
       orElse: () => cameras.first,
@@ -201,6 +212,11 @@ class _PushupCounterState extends State<PushupCounter> {
         title: const Text('Pushup Counter'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.done),
+            onPressed: () => Navigator.of(context).pop(_pushupCount),
+            tooltip: 'Finish Exercise',
+          ),
+          IconButton(
             onPressed: () => setState(() => _debugLogs = !_debugLogs),
             icon: Icon(_debugLogs ? Icons.bug_report : Icons.bug_report_outlined),
             tooltip: 'Toggle debug logs',
@@ -274,5 +290,3 @@ class _PushupCounterState extends State<PushupCounter> {
     }
   }
 }
-
-// SkeletonPainter moved to widgets/skeleton_painter.dart

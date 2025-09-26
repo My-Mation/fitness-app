@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+
 import 'package:installed_apps/installed_apps.dart';
 import 'package:installed_apps/app_info.dart';
+import 'package:pushup_counter/pages/app_editor.dart';
 import 'package:pushup_counter/services/storage_service.dart';
 
 class AppSelector extends StatefulWidget {
@@ -24,8 +26,9 @@ class _AppSelectorState extends State<AppSelector> {
 
   Future<void> _loadInstalledApps() async {
     try {
-      List<AppInfo> apps = await InstalledApps.getInstalledApps(true, true);
-      // Filter out only our own app, keep system apps like YouTube, Chrome, etc.
+      // Corrected to include system apps (like YouTube)
+      List<AppInfo> apps = await InstalledApps.getInstalledApps(false, true);
+      // Filter out only our own app
       apps = apps.where((app) =>
         app.packageName != 'com.example.pushup_counter'
       ).toList();
@@ -50,27 +53,9 @@ class _AppSelectorState extends State<AppSelector> {
 
   Future<void> _loadAppLimits() async {
     final limits = _storage.getAllLimits();
-    print('Loaded limits: $limits'); // Debug
     setState(() {
       _appLimits = limits;
     });
-  }
-
-  Future<void> _saveLimits() async {
-    print('Saving limits: $_appLimits'); // Debug
-    // Save all current limits
-    for (final entry in _appLimits.entries) {
-      if (entry.value > Duration.zero) {
-        await _storage.setDailyLimit(entry.key, entry.value);
-        print('Saved limit for ${entry.key}: ${entry.value}'); // Debug
-      }
-    }
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Time limits saved successfully!')),
-      );
-      Navigator.of(context).pop();
-    }
   }
 
   Future<void> _setTimeLimit(String packageName, Duration limit) async {
@@ -79,7 +64,6 @@ class _AppSelectorState extends State<AppSelector> {
     setState(() {
       _appLimits[packageName] = limit;
     });
-    print('Set limit for $packageName: $limit'); // Debug
   }
 
   String _formatDuration(Duration duration) {
@@ -158,21 +142,22 @@ class _AppSelectorState extends State<AppSelector> {
     }
   }
 
+  void _navigateToAppEditor(String packageName) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AppEditor(packageName: packageName),
+      ),
+    );
+    // Reload limits after returning from the editor
+    await _loadAppLimits();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Disable Apps - Set Time Limits'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () async {
-              await _loadAppLimits();
-              setState(() {});
-            },
-            tooltip: 'Refresh limits from storage',
-          ),
-        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -191,11 +176,14 @@ class _AppSelectorState extends State<AppSelector> {
                   subtitle: Text(hasLimit
                       ? 'Limit: ${_formatDuration(currentLimit)}'
                       : 'No limit set'),
-                  trailing: IconButton(
-                    icon: Icon(hasLimit ? Icons.edit : Icons.add),
-                    onPressed: () => _showTimePicker(app.packageName),
-                  ),
-                  onTap: () => _showTimePicker(app.packageName),
+                  trailing: Icon(hasLimit ? Icons.edit : Icons.add),
+                  onTap: () {
+                    if (hasLimit) {
+                      _navigateToAppEditor(app.packageName);
+                    } else {
+                      _showTimePicker(app.packageName);
+                    }
+                  },
                 );
               },
             ),

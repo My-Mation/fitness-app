@@ -20,6 +20,11 @@ class StorageService {
     await box.put(package, limit.inSeconds);
   }
 
+  Future<void> removeDailyLimit(String package) async {
+    final box = Hive.box(limitsBox);
+    await box.delete(package);
+  }
+
   Duration getDailyLimit(String package) {
     final box = Hive.box(limitsBox);
     final seconds = box.get(package, defaultValue: 0) as int;
@@ -70,5 +75,3 @@ class StorageService {
     return limits;
   }
 }
-
-

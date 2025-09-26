@@ -47,104 +47,46 @@ class _OverlayAppState extends State<_OverlayApp> {
     }
   }
 
-  Future<void> _exitApp() async {
-    try {
-      // Send signal to main app to close overlay
-      await platform.invokeMethod('closeOverlay');
-      // Close overlay
-      await FlutterOverlayWindow.closeOverlay();
-    } catch (e) {
-      print('Error closing overlay: $e');
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       home: Scaffold(
-        backgroundColor: Colors.transparent, // Make scaffold transparent
-        body: Stack(
-          children: [
-            // Full-screen touch blocker
-            GestureDetector(
-              onTap: () {}, // Absorb all taps
-              onPanUpdate: (_) {}, // Absorb all pan gestures
-              onScaleUpdate: (_) {}, // Absorb all scale gestures
-              child: Container(
-                color: Colors.black.withOpacity(0.9), // Semi-transparent black background
-              ),
-            ),
-            // Centered content
-            Center(
-              child: Container(
-                padding: const EdgeInsets.all(24),
-                margin: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.red.shade900.withOpacity(0.95),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.red.shade400, width: 2),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.timer_off,
-                      color: Colors.white,
-                      size: 48,
-                    ),
-                    const SizedBox(height: 16),
-                    const Text(
-                      "⏰ TIME'S UP!",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      "Do pushups to unlock more time",
-                      style: TextStyle(color: Colors.white, fontSize: 16),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 24),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        ElevatedButton.icon(
-                          onPressed: _startPushups,
-                          icon: const Icon(Icons.fitness_center),
-                          label: const Text('Do Pushups'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        OutlinedButton.icon(
-                          onPressed: _exitApp,
-                          icon: const Icon(Icons.close),
-                          label: const Text('Exit App'),
-                          style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: Colors.white),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                          ),
-                        ),
-                      ],
-                    )
-                  ],
+        backgroundColor: Colors.black, // Solid black background
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text(
+                "Time's up!",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-            ),
-          ],
+              const SizedBox(height: 16),
+              const Text(
+                "Do pushups to earn more time.",
+                style: TextStyle(color: Colors.white, fontSize: 18),
+              ),
+              const SizedBox(height: 32),
+              ElevatedButton(
+                onPressed: _startPushups,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                ),
+                child: const Text(
+                  'Do Pushups',
+                  style: TextStyle(fontSize: 20),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
-
-

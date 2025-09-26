@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:usage_stats/usage_stats.dart';
 
 class UsageService {
@@ -5,9 +6,12 @@ class UsageService {
     return await UsageStats.checkUsagePermission() ?? false;
   }
 
-  Future<bool> requestPermission() async {
-    await UsageStats.grantUsagePermission();
-    return await hasPermission();
+  Future<void> requestPermission() async {
+    try {
+      await UsageStats.grantUsagePermission();
+    } catch (e) {
+      // This can happen on some devices, where the settings screen is not opened.
+    }
   }
 
   Future<String?> getForegroundAppPackage() async {
@@ -31,46 +35,29 @@ class UsageService {
 
   Future<Map<String, Duration>> getDailyUsageStats() async {
     try {
-      print('Checking usage permission...');
-      final permissionGranted = await hasPermission();
-      print('Usage permission granted: $permissionGranted');
-
-      if (!permissionGranted) {
-        print('No usage permission, requesting...');
-        await requestPermission();
-        final newPermissionStatus = await hasPermission();
-        print('New permission status: $newPermissionStatus');
-        if (!newPermissionStatus) {
-          return {};
-        }
+      if (!await hasPermission()) {
+        return {};
       }
 
       final now = DateTime.now();
       final startOfDay = DateTime(now.year, now.month, now.day);
-      final endOfDay = startOfDay.add(const Duration(days: 1));
-
-      print('Querying usage stats from $startOfDay to $endOfDay');
-
-      final stats = await UsageStats.queryUsageStats(startOfDay, endOfDay);
-      print('Received ${stats.length} usage stats');
+      final stats = await UsageStats.queryUsageStats(startOfDay, now);
 
       final Map<String, Duration> usageMap = {};
-
       for (final stat in stats) {
-        print('Stat: ${stat.packageName} - ${stat.totalTimeInForeground}');
         if (stat.packageName != null && stat.totalTimeInForeground != null) {
           final totalTimeMs = int.tryParse(stat.totalTimeInForeground!) ?? 0;
           if (totalTimeMs > 0) {
             usageMap[stat.packageName!] = Duration(milliseconds: totalTimeMs);
-            print('Added ${stat.packageName}: ${Duration(milliseconds: totalTimeMs)}');
           }
         }
       }
-
-      print('Returning ${usageMap.length} usage entries');
       return usageMap;
+    } on PlatformException {
+      // This may be due to manufacturer restrictions (e.g., on Oppo, Xiaomi phones).
+      // The user may need to grant Usage Access permission manually.
+      return {};
     } catch (e) {
-      print('Error getting daily usage stats: $e');
       return {};
     }
   }
@@ -89,10 +76,7 @@ class UsageService {
       }
       return Duration.zero;
     } catch (e) {
-      print('Error getting app usage for today: $e');
       return Duration.zero;
     }
   }
 }
-
-
