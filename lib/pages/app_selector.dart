@@ -26,15 +26,37 @@ class _AppSelectorState extends State<AppSelector> {
 
   Future<void> _loadInstalledApps() async {
     try {
-      // Corrected to include system apps (like YouTube)
       List<AppInfo> apps = await InstalledApps.getInstalledApps(false, true);
-      // Filter out only our own app
-      apps = apps.where((app) =>
-        app.packageName != 'com.example.pushup_counter'
-      ).toList();
+
+      // Whitelist of keywords for apps we want to show.
+      const List<String> allowedKeywords = [
+        'youtube',
+        'tiktok',
+        'musically',
+        'game', // A general keyword for games. A better solution would be to check the app category.
+      ];
+
+      final filteredApps = apps.where((app) {
+        final packageName = app.packageName.toLowerCase();
+        final appName = app.name.toLowerCase();
+
+        // Exclude our own app
+        if (packageName == 'com.example.pushup_counter') {
+          return false;
+        }
+
+        for (final keyword in allowedKeywords) {
+          if (packageName.contains(keyword) || appName.contains(keyword)) {
+            return true;
+          }
+        }
+
+        return false;
+      }).toList();
+
 
       setState(() {
-        _installedApps = apps;
+        _installedApps = filteredApps;
         _isLoading = false;
       });
 
