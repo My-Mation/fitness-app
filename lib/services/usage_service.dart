@@ -1,82 +1,85 @@
 import 'package:flutter/services.dart';
-import 'package:usage_stats/usage_stats.dart';
+// import 'package:usage_stats/usage_stats.dart';
 
 class UsageService {
   Future<bool> hasPermission() async {
-    return await UsageStats.checkUsagePermission() ?? false;
+    return false; // await UsageStats.checkUsagePermission() ?? false;
   }
 
   Future<void> requestPermission() async {
-    try {
-      await UsageStats.grantUsagePermission();
-    } catch (e) {
-      // This can happen on some devices, where the settings screen is not opened.
-    }
+    // try {
+    //   await UsageStats.grantUsagePermission();
+    // } catch (e) {
+    //   // This can happen on some devices, where the settings screen is not opened.
+    // }
   }
 
   Future<String?> getForegroundAppPackage() async {
-    try {
-      final events = await UsageStats.queryEvents(DateTime.now().subtract(const Duration(minutes: 1)), DateTime.now());
-      events.sort((a, b) {
-        final aTime = DateTime.tryParse(a.timeStamp ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
-        final bTime = DateTime.tryParse(b.timeStamp ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
-        return aTime.compareTo(bTime);
-      });
-      for (final e in events.reversed) {
-        if (e.eventType == 'MOVE_TO_FOREGROUND') {
-          return e.packageName;
-        }
-      }
-      return null;
-    } catch (_) {
-      return null;
-    }
+    // try {
+    //   final events = await UsageStats.queryEvents(DateTime.now().subtract(const Duration(minutes: 1)), DateTime.now());
+    //   events.sort((a, b) {
+    //     final aTime = DateTime.tryParse(a.timeStamp ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
+    //     final bTime = DateTime.tryParse(b.timeStamp ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
+    //     return aTime.compareTo(bTime);
+    //   });
+    //   for (final e in events.reversed) {
+    //     if (e.eventType == 'MOVE_TO_FOREGROUND') {
+    //       return e.packageName;
+    //     }
+    //   }
+    //   return null;
+    // } catch (_) {
+    //   return null;
+    // }
+    return null;
   }
 
   Future<Map<String, Duration>> getDailyUsageStats() async {
-    try {
-      if (!await hasPermission()) {
-        return {};
-      }
+    // try {
+    //   if (!await hasPermission()) {
+    //     return {};
+    //   }
 
-      final now = DateTime.now();
-      final startOfDay = DateTime(now.year, now.month, now.day);
-      final stats = await UsageStats.queryUsageStats(startOfDay, now);
+    //   final now = DateTime.now();
+    //   final startOfDay = DateTime(now.year, now.month, now.day);
+    //   final stats = await UsageStats.queryUsageStats(startOfDay, now);
 
-      final Map<String, Duration> usageMap = {};
-      for (final stat in stats) {
-        if (stat.packageName != null && stat.totalTimeInForeground != null) {
-          final totalTimeMs = int.tryParse(stat.totalTimeInForeground!) ?? 0;
-          if (totalTimeMs > 0) {
-            usageMap[stat.packageName!] = Duration(milliseconds: totalTimeMs);
-          }
-        }
-      }
-      return usageMap;
-    } on PlatformException {
-      // This may be due to manufacturer restrictions (e.g., on Oppo, Xiaomi phones).
-      // The user may need to grant Usage Access permission manually.
-      return {};
-    } catch (e) {
-      return {};
-    }
+    //   final Map<String, Duration> usageMap = {};
+    //   for (final stat in stats) {
+    //     if (stat.packageName != null && stat.totalTimeInForeground != null) {
+    //       final totalTimeMs = int.tryParse(stat.totalTimeInForeground!) ?? 0;
+    //       if (totalTimeMs > 0) {
+    //         usageMap[stat.packageName!] = Duration(milliseconds: totalTimeMs);
+    //       }
+    //     }
+    //   }
+    //   return usageMap;
+    // } on PlatformException {
+    //   // This may be due to manufacturer restrictions (e.g., on Oppo, Xiaomi phones).
+    //   // The user may need to grant Usage Access permission manually.
+    //   return {};
+    // } catch (e) {
+    //   return {};
+    // }
+    return {};
   }
 
   Future<Duration> getAppUsageForToday(String packageName) async {
-    try {
-      final now = DateTime.now();
-      final startOfDay = DateTime(now.year, now.month, now.day);
+    // try {
+    //   final now = DateTime.now();
+    //   final startOfDay = DateTime(now.year, now.month, now.day);
 
-      final stats = await UsageStats.queryUsageStats(startOfDay, now);
-      for (final stat in stats) {
-        if (stat.packageName == packageName && stat.totalTimeInForeground != null) {
-          final totalTimeMs = int.tryParse(stat.totalTimeInForeground!) ?? 0;
-          return Duration(milliseconds: totalTimeMs);
-        }
-      }
-      return Duration.zero;
-    } catch (e) {
-      return Duration.zero;
-    }
+    //   final stats = await UsageStats.queryUsageStats(startOfDay, now);
+    //   for (final stat in stats) {
+    //     if (stat.packageName == packageName && stat.totalTimeInForeground != null) {
+    //       final totalTimeMs = int.tryParse(stat.totalTimeInForeground!) ?? 0;
+    //       return Duration(milliseconds: totalTimeMs);
+    //     }
+    //   }
+    //   return Duration.zero;
+    // } catch (e) {
+    //   return Duration.zero;
+    // }
+    return Duration.zero;
   }
 }
