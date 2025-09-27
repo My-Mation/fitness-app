@@ -1,23 +1,9 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools">
-    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" />
-    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.CAMERA" />
-    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
     <application
         android:label="pushup_counter"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
-        <service android:name="id.flutter.flutter_background_service.BackgroundService" android:exported="false" android:foregroundServiceType="dataSync" tools:replace="android:exported" />
-        <activity
-            android:name="com.example.pushup_counter.OverlayActivity"
-            android:exported="false"
-            android:theme="@android:style/Theme.Translucent.NoTitleBar"
-            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
-            android:hardwareAccelerated="true"
-            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".MainActivity"
             android:exported="true"
