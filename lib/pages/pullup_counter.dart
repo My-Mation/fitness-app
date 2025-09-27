@@ -224,7 +224,7 @@ class _PullupCounterState extends State<PullupCounter> {
           LayoutBuilder(
             builder: (context, constraints) {
               final overlaySize = Size(constraints.maxWidth, constraints.maxHeight);
-              final sourceSize = _imageZize ?? _controller!.value.previewZize!;
+              final sourceSize = _imageSize ?? _controller!.value.previewSize!;
               return CustomPaint(
                 size: overlaySize,
                 painter: FullBodySkeletonPainter(
