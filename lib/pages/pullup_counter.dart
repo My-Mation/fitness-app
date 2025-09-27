@@ -91,13 +91,6 @@ class _PullupCounterState extends State<PullupCounter> {
     }
     if (poses.isNotEmpty) {
       _countPullups(poses.first);
-      if (_debugLogs) {
-        final p = poses.first;
-        final shoulder = p.landmarks[PoseLandmarkType.leftShoulder];
-        final wrist = p.landmarks[PoseLandmarkType.leftWrist];
-        debugPrint('Landmarks: shoulder=${shoulder?.x.toStringAsFixed(1)},${shoulder?.y.toStringAsFixed(1)}  '
-            'wrist=${wrist?.x.toStringAsFixed(1)},${wrist?.y.toStringAsFixed(1)}');
-      }
     }
 
     setState(() {
@@ -117,58 +110,63 @@ class _PullupCounterState extends State<PullupCounter> {
   }
 
   void _countPullups(Pose pose) {
-    // Safety check: ensure key landmarks are visible for pullup detection
+    // Required landmarks for pull-up detection
     final requiredLandmarks = [
       PoseLandmarkType.leftShoulder, PoseLandmarkType.rightShoulder,
       PoseLandmarkType.leftWrist, PoseLandmarkType.rightWrist,
       PoseLandmarkType.leftHip, PoseLandmarkType.rightHip,
     ];
+
+    // Check if all required landmarks are visible
     for (final type in requiredLandmarks) {
-      if (pose.landmarks[type] == null) return; // Don't count if any required part missing
+      if (pose.landmarks[type] == null || pose.landmarks[type]!.likelihood < 0.5) {
+        _statusText = 'Show full body';
+        return;
+      }
     }
 
     final lShoulder = pose.landmarks[PoseLandmarkType.leftShoulder]!;
     final rShoulder = pose.landmarks[PoseLandmarkType.rightShoulder]!;
     final lWrist = pose.landmarks[PoseLandmarkType.leftWrist]!;
     final rWrist = pose.landmarks[PoseLandmarkType.rightWrist]!;
+    final lHip = pose.landmarks[PoseLandmarkType.leftHip]!;
+    final rHip = pose.landmarks[PoseLandmarkType.rightHip]!;
 
-    // Collarbone Y as midpoint of shoulders
+    // Y-coordinates for key body parts
     final collarboneY = (lShoulder.y + rShoulder.y) / 2.0;
+    final hipY = (lHip.y + rHip.y) / 2.0;
+    final handsY = (lWrist.y + rWrist.y) / 2.0;
 
-    // Hand Y as the bar height (minimum of wrists, assuming hands on bar)
-    final barY = math.min(lWrist.y, rWrist.y);
+    // We can consider the body's center as the average of hip and collarbone
+    final bodyY = (collarboneY + hipY) / 2.0;
 
-    final double distance = collarboneY - barY;
+    // Vertical distance between hands and body center
+    final double distance = (bodyY - handsY).abs();
 
-    // Hysteresis thresholds (in pixels)
-    const double countThresh = 80; // count when collarbone comes close to hands
-    const double resetThresh = 120; // must move away past this to reset
+    // Hysteresis thresholds for pull-up detection (these values may need tuning)
+    // These are ratios of the shoulder-hip distance to make it scale invariant.
+    final shoulderHipDist = (hipY - collarboneY).abs();
+    final double upThreshold = shoulderHipDist * 0.4; // Body is close to hands
+    final double downThreshold = shoulderHipDist * 0.7; // Body is away from hands
 
-    // Count on the way up when collarbone gets close to hands
-    if (!_isUp && distance <= countThresh) {
+    // State transition logic
+    if (!_isUp && distance < upThreshold) {
+      // Transition to 'up' state and count a pull-up
       _isUp = true;
       _pullupCount++;
       _statusText = 'Up';
       _lastRepAt = DateTime.now();
-      if (_debugLogs) debugPrint('Pullup counted at up | distance=${distance.toStringAsFixed(1)} collarboneY=$collarboneY barY=$barY total=$_pullupCount');
-    }
-    // Release when moving away sufficiently
-    if (_isUp && distance >= resetThresh) {
+      if (_debugLogs) {
+        debugPrint('Pull-up UP! Count: $_pullupCount');
+      }
+    } else if (_isUp && distance > downThreshold) {
+      // Transition back to 'down' state
       _isUp = false;
       _statusText = 'Down';
+      if (_debugLogs) {
+        debugPrint('Pull-up DOWN. Ready for next rep.');
+      }
     }
-  }
-
-  double _angleAt(PoseLandmark a, PoseLandmark b, PoseLandmark c) {
-    final ax = a.x - b.x; final ay = a.y - b.y;
-    final cx = c.x - b.x; final cy = c.y - b.y;
-    final double dot = ax * cx + ay * cy;
-    final double magA = math.sqrt(ax * ax + ay * ay);
-    final double magC = math.sqrt(cx * cx + cy * cy);
-    if (magA == 0 || magC == 0) return 180;
-    double cosTheta = dot / (magA * magC);
-    if (cosTheta > 1) cosTheta = 1; if (cosTheta < -1) cosTheta = -1;
-    return (math.acos(cosTheta) * 180 / math.pi);
   }
 
   @override

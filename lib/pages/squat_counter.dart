@@ -91,13 +91,6 @@ class _SquatCounterState extends State<SquatCounter> {
     }
     if (poses.isNotEmpty) {
       _countSquats(poses.first);
-      if (_debugLogs) {
-        final p = poses.first;
-        final hip = p.landmarks[PoseLandmarkType.leftHip];
-        final knee = p.landmarks[PoseLandmarkType.leftKnee];
-        debugPrint('Landmarks: hip=${hip?.x.toStringAsFixed(1)},${hip?.y.toStringAsFixed(1)}  '
-            'knee=${knee?.x.toStringAsFixed(1)},${knee?.y.toStringAsFixed(1)}');
-      }
     }
 
     setState(() {
@@ -117,44 +110,54 @@ class _SquatCounterState extends State<SquatCounter> {
   }
 
   void _countSquats(Pose pose) {
-    // Safety check: ensure key landmarks are visible for squat detection
+    // Required landmarks for squat detection
     final requiredLandmarks = [
       PoseLandmarkType.leftHip, PoseLandmarkType.rightHip,
+      PoseLandmarkType.leftKnee, PoseLandmarkType.rightKnee,
       PoseLandmarkType.leftAnkle, PoseLandmarkType.rightAnkle,
     ];
+
+    // Check if all required landmarks are visible
     for (final type in requiredLandmarks) {
-      if (pose.landmarks[type] == null) return; // Don't count if any required part missing
+      if (pose.landmarks[type] == null || pose.landmarks[type]!.likelihood < 0.5) {
+        _statusText = 'Show full body';
+        return;
+      }
     }
 
     final lHip = pose.landmarks[PoseLandmarkType.leftHip]!;
     final rHip = pose.landmarks[PoseLandmarkType.rightHip]!;
+    final lKnee = pose.landmarks[PoseLandmarkType.leftKnee]!;
+    final rKnee = pose.landmarks[PoseLandmarkType.rightKnee]!;
     final lAnkle = pose.landmarks[PoseLandmarkType.leftAnkle]!;
     final rAnkle = pose.landmarks[PoseLandmarkType.rightAnkle]!;
 
-    // Hip Y as midpoint of hips
-    final hipY = (lHip.y + rHip.y) / 2.0;
+    // Calculate the angle of the knees
+    final leftKneeAngle = _angleAt(lHip, lKnee, lAnkle);
+    final rightKneeAngle = _angleAt(rHip, rKnee, rAnkle);
+    final avgKneeAngle = (leftKneeAngle + rightKneeAngle) / 2.0;
 
-    // Ankle Y as midpoint of ankles (feet position)
-    final ankleY = (lAnkle.y + rAnkle.y) / 2.0;
+    // Hysteresis thresholds for squat detection
+    const double downThreshold = 100.0; // Angle for a squat
+    const double upThreshold = 160.0;   // Angle for standing up
 
-    final double distance = hipY - ankleY;
-
-    // Hysteresis thresholds (in pixels)
-    const double countThresh = 100; // count when hip is close to ground (ankles)
-    const double resetThresh = 50; // must rise above this to reset
-
-    // Count on the way down when hip gets close to feet
-    if (!_isDown && distance >= countThresh) {
+    // State transition logic
+    if (!_isDown && avgKneeAngle < downThreshold) {
+      // Transition to 'down' state and count a squat
       _isDown = true;
       _squatCount++;
       _statusText = 'Down';
       _lastRepAt = DateTime.now();
-      if (_debugLogs) debugPrint('Squat counted at down | distance=${distance.toStringAsFixed(1)} hipY=$hipY ankleY=$ankleY total=$_squatCount');
-    }
-    // Release when rising sufficiently
-    if (_isDown && distance <= resetThresh) {
+      if (_debugLogs) {
+        debugPrint('Squat DOWN! Count: $_squatCount, Angle: ${avgKneeAngle.toStringAsFixed(1)}');
+      }
+    } else if (_isDown && avgKneeAngle > upThreshold) {
+      // Transition back to 'up' state
       _isDown = false;
       _statusText = 'Up';
+      if (_debugLogs) {
+        debugPrint('Squat UP. Ready for next rep. Angle: ${avgKneeAngle.toStringAsFixed(1)}');
+      }
     }
   }
 
