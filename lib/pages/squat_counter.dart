@@ -9,18 +9,18 @@ import 'package:pushup_counter/widgets/skeleton_painter.dart';
 import 'package:pushup_counter/widgets/diagnostics_overlay.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
-class PushupCounter extends StatefulWidget {
-  const PushupCounter({super.key});
+class SquatCounter extends StatefulWidget {
+  const SquatCounter({super.key});
 
   @override
-  State<PushupCounter> createState() => _PushupCounterState();
+  State<SquatCounter> createState() => _SquatCounterState();
 }
 
-class _PushupCounterState extends State<PushupCounter> {
+class _SquatCounterState extends State<SquatCounter> {
   CameraController? _controller;
   final PoseService _poseService = PoseService();
   List<Pose> _poses = [];
-  int _pushupCount = 0;
+  int _squatCount = 0;
   bool _isDown = false;
   DateTime _lastProcessed = DateTime.now();
   bool _debugLogs = false;
@@ -90,15 +90,13 @@ class _PushupCounterState extends State<PushupCounter> {
       if (_debugLogs) debugPrint('Pose detection error: $e');
     }
     if (poses.isNotEmpty) {
-      _countPushups(poses.first);
+      _countSquats(poses.first);
       if (_debugLogs) {
         final p = poses.first;
-        final nose = p.landmarks[PoseLandmarkType.nose];
-        final ls = p.landmarks[PoseLandmarkType.leftShoulder];
-        final le = p.landmarks[PoseLandmarkType.leftElbow];
-        debugPrint('Landmarks: nose=${nose?.x.toStringAsFixed(1)},${nose?.y.toStringAsFixed(1)}  '
-            'LS=${ls?.x.toStringAsFixed(1)},${ls?.y.toStringAsFixed(1)}  '
-            'LE=${le?.x.toStringAsFixed(1)},${le?.y.toStringAsFixed(1)}');
+        final hip = p.landmarks[PoseLandmarkType.leftHip];
+        final knee = p.landmarks[PoseLandmarkType.leftKnee];
+        debugPrint('Landmarks: hip=${hip?.x.toStringAsFixed(1)},${hip?.y.toStringAsFixed(1)}  '
+            'knee=${knee?.x.toStringAsFixed(1)},${knee?.y.toStringAsFixed(1)}');
       }
     }
 
@@ -118,57 +116,43 @@ class _PushupCounterState extends State<PushupCounter> {
     }
   }
 
-  void _countPushups(Pose pose) {
-    // Safety check: ensure all required landmarks are visible
+  void _countSquats(Pose pose) {
+    // Safety check: ensure key landmarks are visible for squat detection
     final requiredLandmarks = [
-      PoseLandmarkType.leftShoulder, PoseLandmarkType.rightShoulder,
-      PoseLandmarkType.leftElbow, PoseLandmarkType.rightElbow,
-      PoseLandmarkType.leftWrist, PoseLandmarkType.rightWrist,
+      PoseLandmarkType.leftHip, PoseLandmarkType.rightHip,
+      PoseLandmarkType.leftAnkle, PoseLandmarkType.rightAnkle,
     ];
     for (final type in requiredLandmarks) {
       if (pose.landmarks[type] == null) return; // Don't count if any required part missing
     }
 
-    final lShoulder = pose.landmarks[PoseLandmarkType.leftShoulder]!;
-    final rShoulder = pose.landmarks[PoseLandmarkType.rightShoulder]!;
-    final lElbow = pose.landmarks[PoseLandmarkType.leftElbow]!;
-    final rElbow = pose.landmarks[PoseLandmarkType.rightElbow]!;
-    final lWrist = pose.landmarks[PoseLandmarkType.leftWrist]!;
-    final rWrist = pose.landmarks[PoseLandmarkType.rightWrist]!;
+    final lHip = pose.landmarks[PoseLandmarkType.leftHip]!;
+    final rHip = pose.landmarks[PoseLandmarkType.rightHip]!;
+    final lAnkle = pose.landmarks[PoseLandmarkType.leftAnkle]!;
+    final rAnkle = pose.landmarks[PoseLandmarkType.rightAnkle]!;
 
-    // Collarbone Y as midpoint of shoulders
-    final collarboneY = (lShoulder.y + rShoulder.y) / 2.0;
+    // Hip Y as midpoint of hips
+    final hipY = (lHip.y + rHip.y) / 2.0;
 
-    // Collarbone-to-palm proximity: prefer wrist; fallback to elbow if wrist out-of-frame
-    final handYs = <double>[];
-    if (lWrist != null) {
-      handYs.add(lWrist.y);
-    } else if (lElbow != null) {
-      handYs.add(lElbow.y);
-    }
-    if (rWrist != null) {
-      handYs.add(rWrist.y);
-    } else if (rElbow != null) {
-      handYs.add(rElbow.y);
-    }
-    if (handYs.isEmpty) return;
-    final nearestPalmY = handYs.reduce((a, b) => a < b ? a : b);
-    final double distance = (nearestPalmY - collarboneY).abs();
+    // Ankle Y as midpoint of ankles (feet position)
+    final ankleY = (lAnkle.y + rAnkle.y) / 2.0;
+
+    final double distance = hipY - ankleY;
 
     // Hysteresis thresholds (in pixels)
-    const double countThresh = 110; // count when collarbone comes within this distance to palm
-    const double resetThresh = 150; // must move away past this to arm back up (avoid double count)
+    const double countThresh = 100; // count when hip is close to ground (ankles)
+    const double resetThresh = 50; // must rise above this to reset
 
-    // Count on the way down when getting close to the palm
-    if (!_isDown && distance <= countThresh) {
+    // Count on the way down when hip gets close to feet
+    if (!_isDown && distance >= countThresh) {
       _isDown = true;
-      _pushupCount++;
+      _squatCount++;
       _statusText = 'Down';
       _lastRepAt = DateTime.now();
-      if (_debugLogs) debugPrint('Rep counted at down | distance=${distance.toStringAsFixed(1)} collarboneY=$collarboneY palmY=$nearestPalmY total=$_pushupCount');
+      if (_debugLogs) debugPrint('Squat counted at down | distance=${distance.toStringAsFixed(1)} hipY=$hipY ankleY=$ankleY total=$_squatCount');
     }
-    // Release when moving away sufficiently to allow next rep
-    if (_isDown && distance >= resetThresh) {
+    // Release when rising sufficiently
+    if (_isDown && distance <= resetThresh) {
       _isDown = false;
       _statusText = 'Up';
     }
@@ -198,7 +182,7 @@ class _PushupCounterState extends State<PushupCounter> {
   Widget build(BuildContext context) {
     if (kIsWeb) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Pushup Counter')),
+        appBar: AppBar(title: const Text('Squat Counter')),
         body: const Center(
           child: Text(
             'Web version: Camera and pose detection features are not supported on web.\nPlease use the mobile app for full functionality.',
@@ -215,11 +199,11 @@ class _PushupCounterState extends State<PushupCounter> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Pushup Counter'),
+        title: const Text('Squat Counter'),
         actions: [
           IconButton(
             icon: const Icon(Icons.done),
-            onPressed: () => Navigator.of(context).pop(_pushupCount),
+            onPressed: () => Navigator.of(context).pop(_squatCount),
             tooltip: 'Finish Exercise',
           ),
           IconButton(
@@ -258,7 +242,7 @@ class _PushupCounterState extends State<PushupCounter> {
             child: Container(
               color: Colors.black54,
               padding: const EdgeInsets.all(8),
-              child: Text('Pushups: $_pushupCount', style: const TextStyle(color: Colors.white, fontSize: 24)),
+              child: Text('Squats: $_squatCount', style: const TextStyle(color: Colors.white, fontSize: 24)),
             ),
           ),
           DiagnosticsOverlay(
