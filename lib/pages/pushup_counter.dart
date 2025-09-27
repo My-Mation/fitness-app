@@ -156,8 +156,8 @@ class _PushupCounterState extends State<PushupCounter> {
     final double distance = (nearestPalmY - collarboneY).abs();
 
     // Hysteresis thresholds (in pixels)
-    const double countThresh = 110; // count when collarbone comes within this distance to palm
-    const double resetThresh = 150; // must move away past this to arm back up (avoid double count)
+    const double countThresh = 130; // count when collarbone comes within this distance to palm
+    const double resetThresh = 200; // must move away past this to arm back up (avoid double count)
 
     // Count on the way down when getting close to the palm
     if (!_isDown && distance <= countThresh) {
