@@ -146,8 +146,8 @@ class _PullupCounterState extends State<PullupCounter> {
     // Hysteresis thresholds for pull-up detection (these values may need tuning)
     // These are ratios of the shoulder-hip distance to make it scale invariant.
     final shoulderHipDist = (hipY - collarboneY).abs();
-    final double upThreshold = shoulderHipDist * 0.4; // Body is close to hands
-    final double downThreshold = shoulderHipDist * 0.7; // Body is away from hands
+    final double upThreshold = shoulderHipDist * 0.6; // Body is close to hands
+    final double downThreshold = shoulderHipDist * 0.9; // Body is away from hands
 
     // State transition logic
     if (!_isUp && distance < upThreshold) {
@@ -224,7 +224,7 @@ class _PullupCounterState extends State<PullupCounter> {
           LayoutBuilder(
             builder: (context, constraints) {
               final overlaySize = Size(constraints.maxWidth, constraints.maxHeight);
-              final sourceSize = _imageSize ?? _controller!.value.previewSize!;
+              final sourceSize = _imageZize ?? _controller!.value.previewZize!;
               return CustomPaint(
                 size: overlaySize,
                 painter: FullBodySkeletonPainter(
