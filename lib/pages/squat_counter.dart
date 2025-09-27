@@ -5,7 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
 import 'package:pushup_counter/services/pose_service.dart';
-import 'package:pushup_counter/widgets/skeleton_painter.dart';
+import 'package:pushup_counter/widgets/full_body_skeleton_painter.dart';
 import 'package:pushup_counter/widgets/diagnostics_overlay.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
@@ -231,7 +231,7 @@ class _SquatCounterState extends State<SquatCounter> {
               final sourceSize = _imageSize ?? _controller!.value.previewSize!;
               return CustomPaint(
                 size: overlaySize,
-                painter: SkeletonPainter(
+                painter: FullBodySkeletonPainter(
                   _poses,
                   sourceSize,
                   isFrontCamera: _isFrontCamera,
